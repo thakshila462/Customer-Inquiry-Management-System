@@ -42,6 +42,7 @@ Customer-Inquiry-Management-System/
 ├── DECISIONS.md
 └── .gitignore
 ```
+## used MVC architecture
 
 The directory structure may vary depending on the final implementation.
 
