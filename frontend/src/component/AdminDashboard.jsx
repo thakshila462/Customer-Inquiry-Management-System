@@ -31,10 +31,13 @@ export default function AdminDashboard({ onLogout }) {
     const [inquiries, setInquiries] = useState([]);
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+
     const [activePage, setActivePage] = useState("Dashboard");
     const [showForm, setShowForm] = useState(false);
+
     const [submitting, setSubmitting] = useState(false);
     const [updatingId, setUpdatingId] = useState(null);
 
@@ -45,6 +48,10 @@ export default function AdminDashboard({ onLogout }) {
         description: "",
     });
 
+    // ========================================
+    // LOAD INQUIRIES FROM BACKEND
+    // ========================================
+
     async function loadInquiries() {
         setLoading(true);
         setError("");
@@ -52,24 +59,28 @@ export default function AdminDashboard({ onLogout }) {
         try {
             const response = await api.get("/inquiries");
 
-            // Supports common Express response formats.
             const result = response.data;
+
             const list = Array.isArray(result)
                 ? result
                 : result.inquiries ?? result.data ?? [];
 
             if (!Array.isArray(list)) {
-                throw new Error("The server returned an unexpected response.");
+                throw new Error(
+                    "The server returned an unexpected response."
+                );
             }
 
             setInquiries(list);
         } catch (err) {
             if (err.response?.status === 401) {
-                setError("Your session has expired. Please sign in again.");
+                setError(
+                    "Your session has expired. Please sign in again."
+                );
             } else {
                 setError(
                     err.response?.data?.message ||
-                    "Could not load inquiries. Check whether the backend is running.",
+                    "Could not load inquiries. Check whether the backend is running."
                 );
             }
         } finally {
@@ -81,6 +92,10 @@ export default function AdminDashboard({ onLogout }) {
         loadInquiries();
     }, []);
 
+    // ========================================
+    // DASHBOARD STATISTICS
+    // ========================================
+
     const statistics = useMemo(
         () => [
             {
@@ -91,26 +106,84 @@ export default function AdminDashboard({ onLogout }) {
             },
             {
                 title: "New",
-                value: inquiries.filter((item) => item.status === "NEW").length,
+                value: inquiries.filter(
+                    (item) => item.status === "NEW"
+                ).length,
                 icon: "✉",
                 color: "bg-blue-50 text-blue-600",
             },
             {
                 title: "In Progress",
-                value: inquiries.filter((item) => item.status === "IN_PROGRESS")
-                    .length,
+                value: inquiries.filter(
+                    (item) => item.status === "IN_PROGRESS"
+                ).length,
                 icon: "◷",
                 color: "bg-amber-50 text-amber-600",
             },
             {
                 title: "Resolved",
-                value: inquiries.filter((item) => item.status === "RESOLVED").length,
+                value: inquiries.filter(
+                    (item) => item.status === "RESOLVED"
+                ).length,
                 icon: "✓",
                 color: "bg-emerald-50 text-emerald-600",
             },
         ],
-        [inquiries],
+        [inquiries]
     );
+
+    // ========================================
+    // PIE CHART DATA
+    // ========================================
+
+    const statusCounts = useMemo(
+        () => ({
+            NEW: inquiries.filter(
+                (item) => item.status === "NEW"
+            ).length,
+
+            IN_PROGRESS: inquiries.filter(
+                (item) => item.status === "IN_PROGRESS"
+            ).length,
+
+            RESOLVED: inquiries.filter(
+                (item) => item.status === "RESOLVED"
+            ).length,
+        }),
+        [inquiries]
+    );
+
+    const totalInquiries = inquiries.length;
+
+    const newPercentage = totalInquiries
+        ? (statusCounts.NEW / totalInquiries) * 100
+        : 0;
+
+    const inProgressPercentage = totalInquiries
+        ? (statusCounts.IN_PROGRESS / totalInquiries) * 100
+        : 0;
+
+    const resolvedPercentage = totalInquiries
+        ? (statusCounts.RESOLVED / totalInquiries) * 100
+        : 0;
+
+    const newEnd = newPercentage;
+
+    const inProgressEnd =
+        newPercentage + inProgressPercentage;
+
+    const pieChartBackground =
+        totalInquiries === 0
+            ? "#e2e8f0"
+            : `conic-gradient(
+                #3b82f6 0% ${newEnd}%,
+                #f59e0b ${newEnd}% ${inProgressEnd}%,
+                #10b981 ${inProgressEnd}% 100%
+            )`;
+
+    // ========================================
+    // SEARCH AND FILTER INQUIRIES
+    // ========================================
 
     const filteredInquiries = useMemo(() => {
         const term = search.trim().toLowerCase();
@@ -118,16 +191,29 @@ export default function AdminDashboard({ onLogout }) {
         return inquiries.filter((item) => {
             const matchesSearch =
                 !term ||
-                [item.customer_name, item.subject, item.contact_info]
+                [
+                    item.customer_name,
+                    item.subject,
+                    item.contact_info,
+                ]
                     .filter(Boolean)
-                    .some((value) => String(value).toLowerCase().includes(term));
+                    .some((value) =>
+                        String(value)
+                            .toLowerCase()
+                            .includes(term)
+                    );
 
             const matchesStatus =
-                statusFilter === "ALL" || item.status === statusFilter;
+                statusFilter === "ALL" ||
+                item.status === statusFilter;
 
             return matchesSearch && matchesStatus;
         });
     }, [inquiries, search, statusFilter]);
+
+    // ========================================
+    // HANDLE FORM INPUTS
+    // ========================================
 
     function handleFormChange(event) {
         const { name, value } = event.target;
@@ -138,8 +224,13 @@ export default function AdminDashboard({ onLogout }) {
         }));
     }
 
+    // ========================================
+    // CREATE NEW INQUIRY
+    // ========================================
+
     async function handleCreateInquiry(event) {
         event.preventDefault();
+
         setSubmitting(true);
         setError("");
 
@@ -160,16 +251,21 @@ export default function AdminDashboard({ onLogout }) {
 
             setShowForm(false);
             setActivePage("Dashboard");
+
             await loadInquiries();
         } catch (err) {
             setError(
                 err.response?.data?.message ||
-                "Could not create the inquiry. Please check your details.",
+                "Could not create the inquiry. Please check your details."
             );
         } finally {
             setSubmitting(false);
         }
     }
+
+    // ========================================
+    // UPDATE INQUIRY STATUS
+    // ========================================
 
     async function handleStatusChange(inquiry, nextStatus) {
         if (nextStatus === inquiry.status) return;
@@ -180,7 +276,9 @@ export default function AdminDashboard({ onLogout }) {
             RESOLVED: [],
         };
 
-        if (!allowedNextStatus[inquiry.status]?.includes(nextStatus)) {
+        if (
+            !allowedNextStatus[inquiry.status]?.includes(nextStatus)
+        ) {
             setError("This status transition is not allowed.");
             return;
         }
@@ -189,19 +287,27 @@ export default function AdminDashboard({ onLogout }) {
         setError("");
 
         try {
-            await api.patch(`/inquiries/${inquiry.id}/status`, {
-                status: nextStatus,
-            });
+            await api.patch(
+                `/inquiries/${inquiry.id}/status`,
+                {
+                    status: nextStatus,
+                }
+            );
 
             await loadInquiries();
         } catch (err) {
             setError(
-                err.response?.data?.message || "Could not update the inquiry status.",
+                err.response?.data?.message ||
+                "Could not update the inquiry status."
             );
         } finally {
             setUpdatingId(null);
         }
     }
+
+    // ========================================
+    // LOGOUT
+    // ========================================
 
     function handleLogout() {
         localStorage.removeItem("ACCESS_TOKEN");
@@ -211,19 +317,35 @@ export default function AdminDashboard({ onLogout }) {
         }
     }
 
+    // ========================================
+    // SIDEBAR NAVIGATION
+    // ========================================
+
     const navigation = [
         { name: "Dashboard", icon: "▦" },
         { name: "All Inquiries", icon: "▤" },
         { name: "New Inquiry", icon: "+" },
     ];
 
+    // ========================================
+    // MAIN UI
+    // ========================================
+
     return (
         <div className="min-h-screen bg-slate-100 text-slate-800">
+
             <div className="flex min-h-screen">
-                {/* Sidebar */}
+
+                {/* ==================================
+                    SIDEBAR
+                ================================== */}
+
                 <aside className="hidden w-64 shrink-0 flex-col bg-slate-950 text-white md:flex">
+
                     <div className="border-b border-slate-800 px-6 py-7">
+
                         <div className="flex items-center gap-3">
+
                             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 text-2xl font-bold">
                                 I
                             </div>
@@ -232,23 +354,35 @@ export default function AdminDashboard({ onLogout }) {
                                 <h1 className="text-lg font-bold tracking-wide">
                                     InquiryFlow
                                 </h1>
-                                <p className="mt-1 text-xs text-slate-400">STAFF PORTAL</p>
+
+                                <p className="mt-1 text-xs text-slate-400">
+                                    STAFF PORTAL
+                                </p>
                             </div>
+
                         </div>
+
                     </div>
 
                     <div className="px-4 py-6">
+
                         <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
                             Workspace
                         </p>
 
                         <nav className="space-y-2">
+
                             {navigation.map((item) => (
+
                                 <button
                                     key={item.name}
                                     onClick={() => {
                                         setActivePage(item.name);
-                                        setShowForm(item.name === "New Inquiry");
+
+                                        setShowForm(
+                                            item.name === "New Inquiry"
+                                        );
+
                                         setError("");
                                     }}
                                     className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
@@ -257,22 +391,39 @@ export default function AdminDashboard({ onLogout }) {
                                             : "text-slate-400 hover:bg-slate-900 hover:text-white"
                                     }`}
                                 >
-                                    <span className="w-5 text-lg">{item.icon}</span>
+                                    <span className="w-5 text-lg">
+                                        {item.icon}
+                                    </span>
+
                                     {item.name}
                                 </button>
+
                             ))}
+
                         </nav>
+
                     </div>
 
+                    {/* Sidebar Footer */}
+
                     <div className="mt-auto border-t border-slate-800 p-4">
+
                         <div className="mb-4 flex items-center gap-3 rounded-xl bg-slate-900 p-3">
+
                             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-500 font-bold">
                                 S
                             </div>
+
                             <div className="min-w-0">
-                                <p className="text-sm font-semibold">Staff Account</p>
-                                <p className="text-xs text-slate-400">Inquiry Management</p>
+                                <p className="text-sm font-semibold">
+                                    Staff Account
+                                </p>
+
+                                <p className="text-xs text-slate-400">
+                                    Inquiry Management
+                                </p>
                             </div>
+
                         </div>
 
                         <button
@@ -281,22 +432,37 @@ export default function AdminDashboard({ onLogout }) {
                         >
                             ↪ &nbsp; Sign Out
                         </button>
+
                     </div>
+
                 </aside>
 
-                {/* Main content */}
+                {/* ==================================
+                    MAIN CONTENT
+                ================================== */}
+
                 <main className="min-w-0 flex-1">
+
+                    {/* HEADER */}
+
                     <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 bg-white px-5 py-5 sm:px-8">
+
                         <div>
+
                             <p className="text-sm text-slate-500">
                                 Workspace / {activePage}
                             </p>
+
                             <h2 className="mt-1 text-2xl font-bold text-slate-900">
-                                {showForm ? "Create New Inquiry" : activePage}
+                                {showForm
+                                    ? "Create New Inquiry"
+                                    : activePage}
                             </h2>
+
                         </div>
 
                         <div className="flex items-center gap-3">
+
                             <button
                                 onClick={loadInquiries}
                                 disabled={loading}
@@ -315,47 +481,79 @@ export default function AdminDashboard({ onLogout }) {
                             >
                                 + New Inquiry
                             </button>
+
                         </div>
+
                     </header>
 
+                    {/* PAGE CONTENT */}
+
                     <div className="p-5 sm:p-8">
+
+                        {/* ERROR MESSAGE */}
+
                         {error && (
+
                             <div
                                 role="alert"
                                 className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
                             >
+
                                 <span>{error}</span>
-                                {error.includes("session has expired") && (
+
+                                {error.includes(
+                                    "session has expired"
+                                ) && (
+
                                     <button
                                         onClick={handleLogout}
                                         className="font-semibold underline"
                                     >
                                         Sign in again
                                     </button>
+
                                 )}
+
                             </div>
+
                         )}
 
-                        {/* Create inquiry form */}
+                        {/* ==================================
+                            NEW INQUIRY FORM
+                        ================================== */}
+
                         {showForm ? (
+
                             <section className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+
                                 <div className="mb-6">
+
                                     <h3 className="text-xl font-bold text-slate-900">
                                         Customer Inquiry Details
                                     </h3>
+
                                     <p className="mt-1 text-sm text-slate-500">
                                         Enter the customer's details below.
                                     </p>
+
                                 </div>
 
-                                <form onSubmit={handleCreateInquiry} className="space-y-5">
+                                <form
+                                    onSubmit={handleCreateInquiry}
+                                    className="space-y-5"
+                                >
+
+                                    {/* Customer Name */}
+
                                     <div>
+
                                         <label
                                             htmlFor="customer_name"
                                             className="mb-2 block text-sm font-semibold"
                                         >
                                             Customer Name *
                                         </label>
+
                                         <input
                                             id="customer_name"
                                             name="customer_name"
@@ -366,15 +564,20 @@ export default function AdminDashboard({ onLogout }) {
                                             placeholder="Enter customer name"
                                             className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
                                         />
+
                                     </div>
 
+                                    {/* Contact Information */}
+
                                     <div>
+
                                         <label
                                             htmlFor="contact_info"
                                             className="mb-2 block text-sm font-semibold"
                                         >
                                             Contact Information *
                                         </label>
+
                                         <input
                                             id="contact_info"
                                             name="contact_info"
@@ -385,15 +588,20 @@ export default function AdminDashboard({ onLogout }) {
                                             placeholder="Phone number or email address"
                                             className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
                                         />
+
                                     </div>
 
+                                    {/* Subject */}
+
                                     <div>
+
                                         <label
                                             htmlFor="subject"
                                             className="mb-2 block text-sm font-semibold"
                                         >
                                             Subject *
                                         </label>
+
                                         <input
                                             id="subject"
                                             name="subject"
@@ -404,15 +612,20 @@ export default function AdminDashboard({ onLogout }) {
                                             placeholder="What is the inquiry about?"
                                             className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
                                         />
+
                                     </div>
 
+                                    {/* Description */}
+
                                     <div>
+
                                         <label
                                             htmlFor="description"
                                             className="mb-2 block text-sm font-semibold"
                                         >
                                             Description *
                                         </label>
+
                                         <textarea
                                             id="description"
                                             name="description"
@@ -424,9 +637,13 @@ export default function AdminDashboard({ onLogout }) {
                                             placeholder="Enter details about the customer inquiry..."
                                             className="w-full resize-y rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
                                         />
+
                                     </div>
 
+                                    {/* Form Buttons */}
+
                                     <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5">
+
                                         <button
                                             type="button"
                                             onClick={() => {
@@ -444,215 +661,576 @@ export default function AdminDashboard({ onLogout }) {
                                             disabled={submitting}
                                             className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
                                         >
-                                            {submitting ? "Saving..." : "Create Inquiry"}
+                                            {submitting
+                                                ? "Saving..."
+                                                : "Create Inquiry"}
                                         </button>
+
                                     </div>
+
                                 </form>
+
                             </section>
+
                         ) : (
+
                             <>
-                                {/* Statistics */}
-                                <section className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-                                    {statistics.map((stat) => (
-                                        <article
-                                            key={stat.title}
-                                            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-                                        >
-                                            <div className="flex items-start justify-between">
-                                                <div>
-                                                    <p className="text-sm font-medium text-slate-500">
-                                                        {stat.title}
-                                                    </p>
-                                                    <p className="mt-3 text-3xl font-bold text-slate-900">
-                                                        {loading ? "—" : stat.value}
-                                                    </p>
-                                                </div>
 
-                                                <div
-                                                    className={`flex h-12 w-12 items-center justify-center rounded-xl text-2xl ${stat.color}`}
+                                {/* ==================================
+                                    DASHBOARD PAGE
+                                ================================== */}
+
+                                {activePage === "Dashboard" && (
+
+                                    <>
+
+                                        {/* SUMMARY CARDS */}
+
+                                        <section className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+
+                                            {statistics.map((stat) => (
+
+                                                <article
+                                                    key={stat.title}
+                                                    className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
                                                 >
-                                                    {stat.icon}
-                                                </div>
-                                            </div>
-                                            <p className="mt-4 text-xs text-slate-400">
-                                                Current inquiry records
-                                            </p>
-                                        </article>
-                                    ))}
-                                </section>
 
-                                {/* Inquiry table */}
-                                <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                                    <div className="flex flex-col gap-4 border-b border-slate-200 p-5 lg:flex-row lg:items-center lg:justify-between">
-                                        <div>
-                                            <h3 className="text-lg font-bold text-slate-900">
-                                                Customer Inquiries
-                                            </h3>
-                                            <p className="mt-1 text-sm text-slate-500">
-                                                View and manage customer requests.
-                                            </p>
-                                        </div>
+                                                    <div className="flex items-start justify-between">
 
-                                        <div className="flex flex-col gap-3 sm:flex-row">
-                                            <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                          ⌕
-                        </span>
-                                                <input
-                                                    type="search"
-                                                    value={search}
-                                                    onChange={(event) => setSearch(event.target.value)}
-                                                    placeholder="Search inquiries..."
-                                                    aria-label="Search inquiries"
-                                                    className="w-full rounded-xl border border-slate-300 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 sm:w-60"
-                                                />
-                                            </div>
+                                                        <div>
 
-                                            <select
-                                                value={statusFilter}
-                                                onChange={(event) => setStatusFilter(event.target.value)}
-                                                aria-label="Filter by status"
-                                                className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
-                                            >
-                                                <option value="ALL">All statuses</option>
-                                                {STATUS_OPTIONS.map((status) => (
-                                                    <option key={status} value={status}>
-                                                        {formatStatus(status)}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
+                                                            <p className="text-sm font-medium text-slate-500">
+                                                                {stat.title}
+                                                            </p>
 
-                                    {loading ? (
-                                        <div className="p-12 text-center">
-                                            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" />
-                                            <p className="mt-4 text-sm text-slate-500">
-                                                Loading inquiries...
-                                            </p>
-                                        </div>
-                                    ) : filteredInquiries.length === 0 ? (
-                                        <div className="px-6 py-16 text-center">
-                                            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-2xl text-slate-500">
-                                                ▤
-                                            </div>
-                                            <h4 className="mt-4 font-semibold text-slate-900">
-                                                No inquiries found
-                                            </h4>
-                                            <p className="mt-2 text-sm text-slate-500">
-                                                {inquiries.length === 0
-                                                    ? "Create a new inquiry to get started."
-                                                    : "Try changing your search or status filter."}
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full min-w-[850px] text-left text-sm">
-                                                <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
-                                                <tr>
-                                                    <th className="px-6 py-4 font-semibold">
-                                                        Customer
-                                                    </th>
-                                                    <th className="px-6 py-4 font-semibold">Subject</th>
-                                                    <th className="px-6 py-4 font-semibold">Contact</th>
-                                                    <th className="px-6 py-4 font-semibold">Status</th>
-                                                    <th className="px-6 py-4 font-semibold">Created</th>
-                                                    <th className="px-6 py-4 font-semibold">
-                                                        Update Status
-                                                    </th>
-                                                </tr>
-                                                </thead>
+                                                            <p className="mt-3 text-3xl font-bold text-slate-900">
+                                                                {loading
+                                                                    ? "—"
+                                                                    : stat.value}
+                                                            </p>
 
-                                                <tbody className="divide-y divide-slate-100">
-                                                {filteredInquiries.map((inquiry) => {
-                                                    const nextStatus =
-                                                        inquiry.status === "NEW"
-                                                            ? "IN_PROGRESS"
-                                                            : inquiry.status === "IN_PROGRESS"
-                                                                ? "RESOLVED"
-                                                                : null;
+                                                        </div>
 
-                                                    return (
-                                                        <tr
-                                                            key={inquiry.id}
-                                                            className="transition hover:bg-slate-50"
+                                                        <div
+                                                            className={`flex h-12 w-12 items-center justify-center rounded-xl text-2xl ${stat.color}`}
                                                         >
-                                                            <td className="px-6 py-5">
-                                                                <p className="font-semibold text-slate-900">
-                                                                    {inquiry.customer_name}
+                                                            {stat.icon}
+                                                        </div>
+
+                                                    </div>
+
+                                                    <p className="mt-4 text-xs text-slate-400">
+                                                        Current inquiry records
+                                                    </p>
+
+                                                </article>
+
+                                            ))}
+
+                                        </section>
+
+                                        {/* ==================================
+                                            PIE CHART
+                                        ================================== */}
+
+                                        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+
+                                            {/* Chart Heading */}
+
+                                            <div className="mb-8">
+
+                                                <h3 className="text-xl font-bold text-slate-900">
+                                                    Inquiry Status Overview
+                                                </h3>
+
+                                                <p className="mt-2 text-sm text-slate-500">
+                                                    View the distribution of customer inquiries by status.
+                                                </p>
+
+                                            </div>
+
+                                            {loading ? (
+
+                                                <div className="py-16 text-center">
+
+                                                    <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" />
+
+                                                    <p className="mt-4 text-sm text-slate-500">
+                                                        Loading chart data...
+                                                    </p>
+
+                                                </div>
+
+                                            ) : (
+
+                                                <div className="flex flex-col items-center justify-center gap-10 py-4 md:flex-row">
+
+                                                    {/* PIE CHART CIRCLE */}
+
+                                                    <div
+                                                        className="relative h-56 w-56 shrink-0 rounded-full shadow-inner sm:h-64 sm:w-64"
+                                                        style={{
+                                                            background: pieChartBackground,
+                                                        }}
+                                                        role="img"
+                                                        aria-label={`Inquiry status distribution: ${statusCounts.NEW} new, ${statusCounts.IN_PROGRESS} in progress, ${statusCounts.RESOLVED} resolved`}
+                                                    >
+
+                                                        {/* Center Circle */}
+
+                                                        <div className="absolute inset-[18%] flex flex-col items-center justify-center rounded-full bg-white shadow-sm">
+
+                                                            <span className="text-center text-xs font-medium text-slate-500 sm:text-sm">
+                                                                Total Inquiries
+                                                            </span>
+
+                                                            <span className="mt-1 text-3xl font-bold text-slate-900 sm:text-4xl">
+                                                                {totalInquiries}
+                                                            </span>
+
+                                                            <span className="mt-1 text-xs text-slate-400">
+                                                                All Records
+                                                            </span>
+
+                                                        </div>
+
+                                                    </div>
+
+                                                    {/* CHART LEGEND */}
+
+                                                    <div className="w-full max-w-sm space-y-4">
+
+                                                        {/* NEW INQUIRIES */}
+
+                                                        <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 p-4">
+
+                                                            <div className="flex items-center gap-3">
+
+                                                                <span className="h-4 w-4 shrink-0 rounded-full bg-blue-500" />
+
+                                                                <div>
+
+                                                                    <p className="font-semibold text-slate-800">
+                                                                        New
+                                                                    </p>
+
+                                                                    <p className="text-xs text-slate-500">
+                                                                        New customer inquiries
+                                                                    </p>
+
+                                                                </div>
+
+                                                            </div>
+
+                                                            <div className="text-right">
+
+                                                                <p className="text-xl font-bold text-slate-900">
+                                                                    {statusCounts.NEW}
                                                                 </p>
-                                                                <p className="mt-1 text-xs text-slate-400">
-                                                                    ID: {inquiry.id}
+
+                                                                <p className="text-xs text-slate-500">
+                                                                    {newPercentage.toFixed(1)}%
                                                                 </p>
-                                                            </td>
 
-                                                            <td className="max-w-56 px-6 py-5">
-                                                                <p className="truncate font-medium text-slate-700">
-                                                                    {inquiry.subject}
+                                                            </div>
+
+                                                        </div>
+
+                                                        {/* IN PROGRESS INQUIRIES */}
+
+                                                        <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 p-4">
+
+                                                            <div className="flex items-center gap-3">
+
+                                                                <span className="h-4 w-4 shrink-0 rounded-full bg-amber-500" />
+
+                                                                <div>
+
+                                                                    <p className="font-semibold text-slate-800">
+                                                                        In Progress
+                                                                    </p>
+
+                                                                    <p className="text-xs text-slate-500">
+                                                                        Inquiries being handled
+                                                                    </p>
+
+                                                                </div>
+
+                                                            </div>
+
+                                                            <div className="text-right">
+
+                                                                <p className="text-xl font-bold text-slate-900">
+                                                                    {statusCounts.IN_PROGRESS}
                                                                 </p>
-                                                                <p className="mt-1 max-w-56 truncate text-xs text-slate-400">
-                                                                    {inquiry.description}
+
+                                                                <p className="text-xs text-slate-500">
+                                                                    {inProgressPercentage.toFixed(1)}%
                                                                 </p>
-                                                            </td>
 
-                                                            <td className="px-6 py-5 text-slate-600">
-                                                                {inquiry.contact_info}
-                                                            </td>
+                                                            </div>
 
-                                                            <td className="px-6 py-5">
-                                  <span
-                                      className={`inline-flex whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset ${
-                                          statusStyles[inquiry.status] ||
-                                          "bg-slate-100 text-slate-600 ring-slate-200"
-                                      }`}
-                                  >
-                                    {formatStatus(inquiry.status)}
-                                  </span>
-                                                            </td>
+                                                        </div>
 
-                                                            <td className="whitespace-nowrap px-6 py-5 text-slate-500">
-                                                                {formatDate(
-                                                                    inquiry.created_at ?? inquiry.createdAt,
-                                                                )}
-                                                            </td>
+                                                        {/* RESOLVED INQUIRIES */}
 
-                                                            <td className="px-6 py-5">
-                                                                {nextStatus ? (
-                                                                    <button
-                                                                        disabled={updatingId === inquiry.id}
-                                                                        onClick={() =>
-                                                                            handleStatusChange(inquiry, nextStatus)
-                                                                        }
-                                                                        className="whitespace-nowrap rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-50"
-                                                                    >
-                                                                        {updatingId === inquiry.id
-                                                                            ? "Updating..."
-                                                                            : `Mark ${formatStatus(nextStatus)}`}
-                                                                    </button>
-                                                                ) : (
-                                                                    <span className="text-xs font-medium text-emerald-600">
-                                      ✓ Completed
-                                    </span>
-                                                                )}
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                                </tbody>
-                                            </table>
+                                                        <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 p-4">
+
+                                                            <div className="flex items-center gap-3">
+
+                                                                <span className="h-4 w-4 shrink-0 rounded-full bg-emerald-500" />
+
+                                                                <div>
+
+                                                                    <p className="font-semibold text-slate-800">
+                                                                        Resolved
+                                                                    </p>
+
+                                                                    <p className="text-xs text-slate-500">
+                                                                        Completed inquiries
+                                                                    </p>
+
+                                                                </div>
+
+                                                            </div>
+
+                                                            <div className="text-right">
+
+                                                                <p className="text-xl font-bold text-slate-900">
+                                                                    {statusCounts.RESOLVED}
+                                                                </p>
+
+                                                                <p className="text-xs text-slate-500">
+                                                                    {resolvedPercentage.toFixed(1)}%
+                                                                </p>
+
+                                                            </div>
+
+                                                        </div>
+
+                                                    </div>
+
+                                                </div>
+
+                                            )}
+
+                                            {/* EMPTY STATE */}
+
+                                            {!loading && totalInquiries === 0 && (
+
+                                                <p className="mt-6 text-center text-sm text-slate-500">
+                                                    No inquiries available yet. Create a new inquiry to see your chart.
+                                                </p>
+
+                                            )}
+
+                                        </section>
+
+                                    </>
+
+                                )}
+
+                                {/* ==================================
+                                    ALL INQUIRIES PAGE
+                                ================================== */}
+
+                                {activePage === "All Inquiries" && (
+
+                                    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+
+                                        {/* TABLE HEADER */}
+
+                                        <div className="flex flex-col gap-4 border-b border-slate-200 p-5 lg:flex-row lg:items-center lg:justify-between">
+
+                                            <div>
+
+                                                <h3 className="text-lg font-bold text-slate-900">
+                                                    Customer Inquiries
+                                                </h3>
+
+                                                <p className="mt-1 text-sm text-slate-500">
+                                                    View and manage customer requests.
+                                                </p>
+
+                                            </div>
+
+                                            {/* SEARCH AND FILTER */}
+
+                                            <div className="flex flex-col gap-3 sm:flex-row">
+
+                                                <div className="relative">
+
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                                        ⌕
+                                                    </span>
+
+                                                    <input
+                                                        type="search"
+                                                        value={search}
+                                                        onChange={(event) =>
+                                                            setSearch(event.target.value)
+                                                        }
+                                                        placeholder="Search inquiries..."
+                                                        aria-label="Search inquiries"
+                                                        className="w-full rounded-xl border border-slate-300 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 sm:w-60"
+                                                    />
+
+                                                </div>
+
+                                                <select
+                                                    value={statusFilter}
+                                                    onChange={(event) =>
+                                                        setStatusFilter(event.target.value)
+                                                    }
+                                                    aria-label="Filter by status"
+                                                    className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+                                                >
+
+                                                    <option value="ALL">
+                                                        All statuses
+                                                    </option>
+
+                                                    {STATUS_OPTIONS.map((status) => (
+
+                                                        <option
+                                                            key={status}
+                                                            value={status}
+                                                        >
+                                                            {formatStatus(status)}
+                                                        </option>
+
+                                                    ))}
+
+                                                </select>
+
+                                            </div>
+
                                         </div>
-                                    )}
 
-                                    <div className="border-t border-slate-200 px-5 py-4 text-xs text-slate-500">
-                                        Showing {filteredInquiries.length} of {inquiries.length}{" "}
-                                        inquiries
-                                    </div>
-                                </section>
+                                        {/* TABLE LOADING STATE */}
+
+                                        {loading ? (
+
+                                            <div className="p-12 text-center">
+
+                                                <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" />
+
+                                                <p className="mt-4 text-sm text-slate-500">
+                                                    Loading inquiries...
+                                                </p>
+
+                                            </div>
+
+                                        ) : filteredInquiries.length === 0 ? (
+
+                                            /* EMPTY STATE */
+
+                                            <div className="px-6 py-16 text-center">
+
+                                                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-2xl text-slate-500">
+                                                    ▤
+                                                </div>
+
+                                                <h4 className="mt-4 font-semibold text-slate-900">
+                                                    No inquiries found
+                                                </h4>
+
+                                                <p className="mt-2 text-sm text-slate-500">
+                                                    {inquiries.length === 0
+                                                        ? "Create a new inquiry to get started."
+                                                        : "Try changing your search or status filter."}
+                                                </p>
+
+                                            </div>
+
+                                        ) : (
+
+                                            /* INQUIRIES TABLE */
+
+                                            <div className="overflow-x-auto">
+
+                                                <table className="w-full min-w-[850px] text-left text-sm">
+
+                                                    <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+
+                                                    <tr>
+
+                                                        <th className="px-6 py-4 font-semibold">
+                                                            Customer
+                                                        </th>
+
+                                                        <th className="px-6 py-4 font-semibold">
+                                                            Subject
+                                                        </th>
+
+                                                        <th className="px-6 py-4 font-semibold">
+                                                            Contact
+                                                        </th>
+
+                                                        <th className="px-6 py-4 font-semibold">
+                                                            Status
+                                                        </th>
+
+                                                        <th className="px-6 py-4 font-semibold">
+                                                            Created
+                                                        </th>
+
+                                                        <th className="px-6 py-4 font-semibold">
+                                                            Update Status
+                                                        </th>
+
+                                                    </tr>
+
+                                                    </thead>
+
+                                                    <tbody className="divide-y divide-slate-100">
+
+                                                    {filteredInquiries.map((inquiry) => {
+
+                                                        const nextStatus =
+                                                            inquiry.status === "NEW"
+                                                                ? "IN_PROGRESS"
+                                                                : inquiry.status === "IN_PROGRESS"
+                                                                    ? "RESOLVED"
+                                                                    : null;
+
+                                                        return (
+
+                                                            <tr
+                                                                key={inquiry.id}
+                                                                className="transition hover:bg-slate-50"
+                                                            >
+
+                                                                {/* CUSTOMER */}
+
+                                                                <td className="px-6 py-5">
+
+                                                                    <p className="font-semibold text-slate-900">
+                                                                        {inquiry.customer_name}
+                                                                    </p>
+
+                                                                    <p className="mt-1 text-xs text-slate-400">
+                                                                        ID: {inquiry.id}
+                                                                    </p>
+
+                                                                </td>
+
+                                                                {/* SUBJECT */}
+
+                                                                <td className="max-w-56 px-6 py-5">
+
+                                                                    <p className="truncate font-medium text-slate-700">
+                                                                        {inquiry.subject}
+                                                                    </p>
+
+                                                                    <p className="mt-1 max-w-56 truncate text-xs text-slate-400">
+                                                                        {inquiry.description}
+                                                                    </p>
+
+                                                                </td>
+
+                                                                {/* CONTACT */}
+
+                                                                <td className="px-6 py-5 text-slate-600">
+                                                                    {inquiry.contact_info}
+                                                                </td>
+
+                                                                {/* STATUS */}
+
+                                                                <td className="px-6 py-5">
+
+                                                                        <span
+                                                                            className={`inline-flex whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset ${
+                                                                                statusStyles[inquiry.status] ||
+                                                                                "bg-slate-100 text-slate-600 ring-slate-200"
+                                                                            }`}
+                                                                        >
+                                                                            {formatStatus(inquiry.status)}
+                                                                        </span>
+
+                                                                </td>
+
+                                                                {/* CREATED DATE */}
+
+                                                                <td className="whitespace-nowrap px-6 py-5 text-slate-500">
+
+                                                                    {formatDate(
+                                                                        inquiry.created_at ??
+                                                                        inquiry.createdAt
+                                                                    )}
+
+                                                                </td>
+
+                                                                {/* UPDATE STATUS */}
+
+                                                                <td className="px-6 py-5">
+
+                                                                    {nextStatus ? (
+
+                                                                        <button
+                                                                            disabled={
+                                                                                updatingId === inquiry.id
+                                                                            }
+                                                                            onClick={() =>
+                                                                                handleStatusChange(
+                                                                                    inquiry,
+                                                                                    nextStatus
+                                                                                )
+                                                                            }
+                                                                            className="whitespace-nowrap rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-50"
+                                                                        >
+                                                                            {updatingId === inquiry.id
+                                                                                ? "Updating..."
+                                                                                : `Mark ${formatStatus(nextStatus)}`}
+                                                                        </button>
+
+                                                                    ) : (
+
+                                                                        <span className="text-xs font-medium text-emerald-600">
+                                                                                ✓ Completed
+                                                                            </span>
+
+                                                                    )}
+
+                                                                </td>
+
+                                                            </tr>
+
+                                                        );
+
+                                                    })}
+
+                                                    </tbody>
+
+                                                </table>
+
+                                            </div>
+
+                                        )}
+
+                                        {/* TABLE FOOTER */}
+
+                                        <div className="border-t border-slate-200 px-5 py-4 text-xs text-slate-500">
+
+                                            Showing {filteredInquiries.length} of{" "}
+                                            {inquiries.length} inquiries
+
+                                        </div>
+
+                                    </section>
+
+                                )}
+
                             </>
+
                         )}
+
                     </div>
+
                 </main>
+
             </div>
+
         </div>
     );
 }

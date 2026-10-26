@@ -9,12 +9,12 @@ function App() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Check whether a login token already exists.
+  // Check  token already exists.
   const [isAuthenticated, setIsAuthenticated] = useState(
       Boolean(localStorage.getItem("ACCESS_TOKEN"))
   );
 
-  // Login form submission
+  // Login form
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -91,15 +91,15 @@ function App() {
   return (
       <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 px-4 py-10 sm:px-6 lg:px-8">
 
-        {/* Background decoration */}
+
         <div className="pointer-events-none absolute -left-32 -top-32 h-80 w-80 rounded-full bg-blue-600/20 blur-3xl" />
 
         <div className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-indigo-600/20 blur-3xl" />
 
-        {/* Main layout */}
+
         <div className="relative grid w-full max-w-5xl overflow-hidden rounded-3xl border border-white/10 bg-slate-900 shadow-2xl lg:grid-cols-2">
 
-          {/* Left branding section */}
+
           <section className="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-blue-700 via-indigo-700 to-violet-800 p-10 text-white lg:flex xl:p-14">
 
             <div className="absolute -right-20 top-32 h-64 w-64 rounded-full border border-white/10" />
@@ -108,7 +108,7 @@ function App() {
 
             <div className="absolute -bottom-24 -left-20 h-72 w-72 rounded-full bg-white/5" />
 
-            {/* Logo */}
+
             <div className="relative z-10 flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 text-xl font-bold backdrop-blur">
                 I
@@ -116,7 +116,7 @@ function App() {
 
               <div>
                 <h1 className="text-lg font-bold tracking-wide">
-                  InquiryFlow
+                  InquiTrack
                 </h1>
 
                 <p className="text-xs text-blue-100">
@@ -144,8 +144,8 @@ function App() {
               </h2>
 
               <p className="mt-6 max-w-md text-sm leading-7 text-blue-100 xl:text-base">
-                Manage customer conversations, track requests, and keep every
-                inquiry moving towards a resolution from one organized workspace.
+                Manage customer conversations, track requests.
+
               </p>
 
               <div className="mt-9 space-y-5">
@@ -171,9 +171,7 @@ function App() {
               </div>
             </div>
 
-            <p className="relative z-10 text-xs text-blue-100/70">
-              A smarter way to manage customer inquiries.
-            </p>
+
           </section>
 
           {/* Right login section */}
@@ -428,7 +426,7 @@ function App() {
                     </div>
                 )}
 
-                {/* Submit button */}
+
                 <button
                     type="submit"
                     disabled={loading}
